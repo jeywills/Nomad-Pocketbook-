@@ -38,7 +38,7 @@ export default function Home() {
           nomad?
         </h1>
         <p className="mt-3 max-w-[16rem] text-sm text-white/90">
-          Compare the weather, line up time zones and price your next move. Earn stamps as you explore.
+          Compare the weather, line up time zones and price your next move, then scratch off the places you have really been.
         </p>
         <Link
           href="/weather"

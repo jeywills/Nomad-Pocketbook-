@@ -31,6 +31,8 @@ type GeoResult = {
   name: string;
   country?: string;
   country_code?: string;
+  /** GeoNames feature code: PPL* are towns and cities, AIRP is an airport, ISL an island... */
+  feature_code?: string;
   admin1?: string;
   latitude: number;
   longitude: number;
@@ -45,8 +47,10 @@ export async function searchPlaces(query: string): Promise<Place[]> {
   const res = await fetch(url);
   if (!res.ok) throw new Error("Search failed");
   const json = (await res.json()) as { results?: GeoResult[] };
+  const seen = new Set<string>();
   return (json.results ?? [])
-    .filter((r) => r.timezone)
+    // Towns and cities only: no airports, islands or landmarks.
+    .filter((r) => r.timezone && (r.feature_code ?? "PPL").startsWith("PPL"))
     .map((r) =>
       makePlace(
         r.name,
@@ -56,5 +60,6 @@ export async function searchPlaces(query: string): Promise<Place[]> {
         r.timezone as string,
         r.country_code,
       ),
-    );
+    )
+    .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
 }

@@ -79,7 +79,6 @@ export default function TimePage() {
   const addPlace = (p: Place) => {
     if (others.length >= MAX_OTHERS || others.some((x) => x.id === p.id)) return;
     setOthers((prev) => [...prev, toPlace(p)]);
-    trigger({ type: "stamp", place: p, source: "time" });
   };
 
   const quick = CITIES.filter((c) => !others.some((p) => p.id === c.id)).slice(0, 12).map(toPlace);

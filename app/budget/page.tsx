@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import PageBanner from "@/components/PageBanner";
 import { trigger } from "@/lib/game";
-import { toPlace } from "@/lib/places";
 import {
   applyFx,
   CATEGORIES,
@@ -113,7 +112,6 @@ export default function BudgetPage() {
 
   function chooseTarget(city: City) {
     patch({ toId: city.id });
-    trigger({ type: "stamp", place: toPlace(city), source: "budget" });
   }
 
   /** Switch currency and convert any amounts already typed, so they keep their real value. */

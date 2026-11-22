@@ -19,7 +19,7 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Nomad Pocketbook",
   description:
-    "Compare monthly weather, work across time zones and price your next move. Collect passport stamps as you explore.",
+    "Compare monthly weather, work across time zones and price your next move. Scratch off the countries you have really visited.",
   appleWebApp: { capable: true, title: "Pocketbook", statusBarStyle: "default" },
 };
 

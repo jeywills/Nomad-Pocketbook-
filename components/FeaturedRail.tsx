@@ -2,14 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { CITIES, totalCost } from "@/lib/costs";
-import { DEFAULT_WEATHER_PLACES } from "@/lib/defaults";
+import { addCityToWeather } from "@/lib/explore";
 import { DEFAULT_CURRENCY, unitsPerUsd } from "@/lib/fx";
 import { FEATURED, type Featured } from "@/lib/featured";
-import { trigger } from "@/lib/game";
-import { readStored, useStored, writeStored } from "@/lib/hooks";
-import { toPlace, type Place } from "@/lib/places";
-
-const MAX_WEATHER = 4;
+import { useStored } from "@/lib/hooks";
 
 export default function FeaturedRail() {
   const router = useRouter();
@@ -23,15 +19,7 @@ export default function FeaturedRail() {
   function explore(f: Featured) {
     const city = CITIES.find((c) => c.name === f.city);
     if (!city) return;
-    const place = toPlace(city);
-    const list = readStored<Place[]>("np.weather", DEFAULT_WEATHER_PLACES);
-    const next = list.some((p) => p.id === place.id)
-      ? list
-      : list.length >= MAX_WEATHER
-        ? [...list.slice(0, MAX_WEATHER - 1), place]
-        : [...list, place];
-    writeStored("np.weather", next);
-    trigger({ type: "stamp", place, source: "weather" });
+    addCityToWeather(city);
     router.push("/weather");
   }
 

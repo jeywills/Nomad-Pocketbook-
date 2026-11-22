@@ -1,16 +1,34 @@
 "use client";
 
+import { useMemo } from "react";
+import { countryName, SOVEREIGN } from "./countries";
 import { readStored, useNow, useStored, writeStored } from "./hooks";
 
 /* ---------- state ---------- */
 
-export const GAME_KEY = "np.game.v1";
+/** v2: stamps now mean "I have really been here". v1 stamps came from using the tools. */
+export const GAME_KEY = "np.game.v2";
 
-export type Stamp = { id: string; name: string; cc: string; at: string };
+export type Stamp = {
+  id: string;
+  /** "country" stamps come from scratching a country off the map. */
+  kind: "city" | "country";
+  name: string;
+  /** ISO 3166-1 alpha-2 country code. */
+  cc: string;
+  at: string;
+  lat?: number;
+  lon?: number;
+};
 
 export type GameState = {
   xp: number;
+  /** Places the user says they have actually been to. */
   stamps: Stamp[];
+  /** Places the user wants to visit. Same shape as a stamp, shown in blue. */
+  wishlist: Stamp[];
+  /** Stamp or country ids that already paid out XP, so removing and re-adding can't farm it. */
+  awarded: string[];
   /** badge id -> ISO date unlocked */
   badges: Record<string, string>;
   /** one-time actions already rewarded */
@@ -23,11 +41,34 @@ export type GameState = {
 export const INITIAL_GAME: GameState = {
   xp: 0,
   stamps: [],
+  wishlist: [],
+  awarded: [],
   badges: {},
   flags: {},
   weatherAdds: 0,
   streak: { last: "", count: 0, best: 0 },
 };
+
+/** Country codes the user has visited (any stamp in the country counts). */
+export function visitedCodes(s: GameState): Set<string> {
+  return new Set(s.stamps.map((x) => x.cc).filter(Boolean));
+}
+
+/**
+ * Countries wished for as a whole country (shown blue on the map).
+ * A country already visited is never "wished".
+ */
+export function wishedCountryCodes(s: GameState): Set<string> {
+  const visited = visitedCodes(s);
+  return new Set(s.wishlist.filter((w) => w.kind === "country" && !visited.has(w.cc)).map((w) => w.cc));
+}
+
+/** How many of the 195 sovereign states have been visited. */
+export function sovereignVisited(s: GameState): number {
+  let n = 0;
+  for (const cc of visitedCodes(s)) if (SOVEREIGN.has(cc)) n += 1;
+  return n;
+}
 
 /* ---------- levels ---------- */
 
@@ -82,14 +123,16 @@ export type Badge = {
 };
 
 export const BADGES: Badge[] = [
+  { id: "first_stamp", name: "First Stamp", emoji: "🛂", hint: "Mark somewhere you have really been", test: (s) => s.stamps.length >= 1 },
+  { id: "globetrotter", name: "Globetrotter", emoji: "🧭", hint: "Scratch off 5 countries", test: (s) => sovereignVisited(s) >= 5 },
+  { id: "legend", name: "World Wanderer", emoji: "🌍", hint: "Scratch off 15 countries", test: (s) => sovereignVisited(s) >= 15 },
+  { id: "dreamer", name: "Dreamer", emoji: "🌠", hint: "Add 3 places to your wish list", test: (s) => s.wishlist.length >= 3 },
   { id: "first_forecast", name: "First Forecast", emoji: "🌤️", hint: "Check a month-by-month forecast", test: (s) => !!s.flags.first_forecast },
   { id: "sunchaser", name: "Sunchaser", emoji: "☀️", hint: "Add 3 cities to the weather comparison", test: (s) => s.weatherAdds >= 3 },
   { id: "clockwork", name: "Clockwork", emoji: "⏰", hint: "Find a working window you all share", test: (s) => !!s.flags.overlap },
   { id: "penny_wise", name: "Penny Wise", emoji: "🪙", hint: "Run the budget checker", test: (s) => !!s.flags.budget_run },
   { id: "hopper", name: "Currency Hopper", emoji: "💱", hint: "Switch your currency", test: (s) => !!s.flags.currency },
   { id: "big_saver", name: "Big Saver", emoji: "💰", hint: "Find a place that costs 30% less", test: (s) => !!s.flags.big_saver },
-  { id: "globetrotter", name: "Globetrotter", emoji: "🧭", hint: "Collect 5 passport stamps", test: (s) => s.stamps.length >= 5 },
-  { id: "legend", name: "World Wanderer", emoji: "🌍", hint: "Collect 12 passport stamps", test: (s) => s.stamps.length >= 12 },
   { id: "streak3", name: "On a Roll", emoji: "🔥", hint: "Visit three days in a row", test: (s) => s.streak.best >= 3 },
 ];
 
@@ -103,17 +146,10 @@ export type Quest = {
 };
 
 export const QUESTS: Quest[] = [
+  { id: "first_stamp", label: "Mark a place you have really been", href: "/passport", xp: 15, done: (s) => s.stamps.length >= 1 },
   { id: "first_forecast", label: "Check a month-by-month forecast", href: "/weather", xp: 20, done: (s) => !!s.flags.first_forecast },
   { id: "overlap", label: "Find a shared working window", href: "/time", xp: 25, done: (s) => !!s.flags.overlap },
   { id: "budget_run", label: "Price up a move in the budget checker", href: "/budget", xp: 25, done: (s) => !!s.flags.budget_run },
-  {
-    id: "stamps3",
-    label: "Collect 3 passport stamps",
-    href: "/weather",
-    xp: 15,
-    done: (s) => s.stamps.length >= 3,
-    progress: (s) => `${Math.min(s.stamps.length, 3)}/3`,
-  },
 ];
 
 /* ---------- events ---------- */
@@ -128,8 +164,19 @@ const ONCE: Record<OnceId, { xp: number; label: string }> = {
   currency: { xp: 10, label: "Switched currency" },
 };
 
+export type VisitedPlace = { id: string; name: string; cc?: string; lat?: number; lon?: number };
+
 export type GameEvent =
-  | { type: "stamp"; place: { id: string; name: string; cc?: string }; source: "weather" | "time" | "budget" }
+  /** The user says they have really been to a city or country. */
+  | { type: "visit_place"; kind: "city" | "country"; place: VisitedPlace }
+  /** Remove one city stamp. */
+  | { type: "unvisit_place"; id: string }
+  /** The user wants to go to a city or country. */
+  | { type: "wish_add"; kind: "city" | "country"; place: VisitedPlace }
+  | { type: "wish_remove"; id: string }
+  /** Remove every stamp in a country. */
+  | { type: "unvisit_country"; cc: string }
+  | { type: "weather_add" }
   | { type: "once"; id: OnceId }
   | { type: "saving"; pct: number }
   | { type: "visit" };
@@ -151,6 +198,8 @@ export function trigger(ev: GameEvent): void {
   const s: GameState = {
     ...prev,
     stamps: [...prev.stamps],
+    wishlist: [...prev.wishlist],
+    awarded: [...prev.awarded],
     badges: { ...prev.badges },
     flags: { ...prev.flags },
     streak: { ...prev.streak },
@@ -165,19 +214,48 @@ export function trigger(ev: GameEvent): void {
     s.flags[id] = true;
     give(xp, label);
   };
+  /** Pay out for an id only the first time it is ever stamped. */
+  const award = (id: string, xp: number, label: string) => {
+    if (s.awarded.includes(id)) return;
+    s.awarded.push(id);
+    give(xp, label);
+  };
 
   switch (ev.type) {
-    case "stamp":
-      if (ev.source === "weather") s.weatherAdds += 1;
-      if (!s.stamps.some((x) => x.id === ev.place.id)) {
-        s.stamps.push({
-          id: ev.place.id,
-          name: ev.place.name,
-          cc: (ev.place.cc ?? "").toUpperCase(),
-          at: new Date().toISOString(),
-        });
-        give(15, `Passport stamp: ${ev.place.name}`);
-      }
+    case "visit_place": {
+      const { kind, place } = ev;
+      const cc = (place.cc ?? "").toUpperCase();
+      const id = kind === "country" ? `country:${cc}` : place.id;
+      if (s.stamps.some((x) => x.id === id)) break;
+      const countryAlreadyVisited = !!cc && s.stamps.some((x) => x.cc === cc);
+      s.stamps.push({ id, kind, name: place.name, cc, at: new Date().toISOString(), lat: place.lat, lon: place.lon });
+      if (kind === "city") award(id, 15, `Passport stamp: ${place.name}`);
+      if (cc && !countryAlreadyVisited) award(`country:${cc}`, 25, `New country: ${countryName(cc)}`);
+      // Going there ticks it off the wish list.
+      s.wishlist = s.wishlist.filter((w) => w.id !== id);
+      break;
+    }
+    case "wish_add": {
+      const { kind, place } = ev;
+      const cc = (place.cc ?? "").toUpperCase();
+      const id = kind === "country" ? `country:${cc}` : place.id;
+      const beenThere = kind === "country" ? !!cc && s.stamps.some((x) => x.cc === cc) : s.stamps.some((x) => x.id === id);
+      if (beenThere || s.wishlist.some((w) => w.id === id)) break;
+      s.wishlist.push({ id, kind, name: place.name, cc, at: new Date().toISOString(), lat: place.lat, lon: place.lon });
+      award(`wish:${id}`, 5, `Wish list: ${place.name}`);
+      break;
+    }
+    case "wish_remove":
+      s.wishlist = s.wishlist.filter((w) => w.id !== ev.id);
+      break;
+    case "unvisit_place":
+      s.stamps = s.stamps.filter((x) => x.id !== ev.id);
+      break;
+    case "unvisit_country":
+      s.stamps = s.stamps.filter((x) => x.cc !== ev.cc);
+      break;
+    case "weather_add":
+      s.weatherAdds += 1;
       break;
     case "once":
       once(ev.id, ONCE[ev.id].xp, ONCE[ev.id].label);
@@ -222,7 +300,9 @@ export function trigger(ev: GameEvent): void {
 /* ---------- hook ---------- */
 
 export function useGame() {
-  const [game] = useStored<GameState>(GAME_KEY, INITIAL_GAME);
+  const [stored] = useStored<Partial<GameState>>(GAME_KEY, INITIAL_GAME);
+  // Fill in anything an older save is missing (for example the wish list).
+  const game = useMemo<GameState>(() => ({ ...INITIAL_GAME, ...stored }), [stored]);
   const now = useNow();
   return { game, ...levelInfo(game.xp), streak: liveStreak(game, now) };
 }

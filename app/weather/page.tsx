@@ -153,7 +153,7 @@ export default function WeatherPage() {
   const addPlace = (p: Place) => {
     if (places.length >= MAX_PLACES || places.some((x) => x.id === p.id)) return;
     setPlaces((prev) => [...prev, toPlace(p)]);
-    trigger({ type: "stamp", place: p, source: "weather" });
+    trigger({ type: "weather_add" });
   };
   const removePlace = (id: string) => setPlaces((prev) => prev.filter((p) => p.id !== id));
   const setPref = (patch: Partial<typeof DEFAULT_PREFS>) => setPrefs((prev) => ({ ...prev, ...patch }));
