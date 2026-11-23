@@ -5,6 +5,13 @@ import QuestPanel from "@/components/QuestPanel";
 
 const TOOLS = [
   {
+    href: "/trip",
+    title: "Trip planner",
+    body: "Plan a multi-country trip: weather, visa dates and budget.",
+    emoji: "🧭",
+    tint: "bg-gradient-to-br from-[#1e1b4b] to-[#0f766e]",
+  },
+  {
     href: "/weather",
     title: "Weather by month",
     body: "A whole year of sun and rain, side by side.",

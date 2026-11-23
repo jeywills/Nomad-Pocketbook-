@@ -56,7 +56,7 @@ export function stayInterval(s: Stay, today: number): Interval | null {
 }
 
 /** Number of distinct days covered by the intervals inside [lo, hi]. Overlaps count once. */
-function coveredDays(intervals: Interval[], lo: number, hi: number): number {
+export function coveredDays(intervals: Interval[], lo: number, hi: number): number {
   const clipped = intervals
     .map(([a, b]) => [Math.max(a, lo), Math.min(b, hi)] as Interval)
     .filter(([a, b]) => b >= a)

@@ -9,31 +9,20 @@ import {
   CITIES,
   convertBudget,
   totalCost,
-  type CategoryKey,
   type City,
 } from "@/lib/costs";
+import { DEFAULT_BUDGET, parseAmount, type BudgetMode, type BudgetSaved } from "@/lib/budgetPrefs";
 import { BASE_RATES_DATE, CURRENCIES, DEFAULT_CURRENCY, fxFactor, unitsPerUsd } from "@/lib/fx";
 import { useLiveRates, useStored } from "@/lib/hooks";
 
-type Mode = "total" | "split";
-type Saved = {
-  fromId: string;
-  toId: string;
-  mode: Mode;
-  total: string;
-  split: Partial<Record<CategoryKey, string>>;
-  /** Adjust estimates with live exchange rates. Undefined means on. */
-  live?: boolean;
-};
+type Mode = BudgetMode;
+type Saved = BudgetSaved;
 
 const lisbon = CITIES.find((c) => c.name === "Lisbon") as City;
 const bangkok = CITIES.find((c) => c.name === "Bangkok") as City;
-const DEFAULTS: Saved = { fromId: lisbon.id, toId: bangkok.id, mode: "total", total: "", split: {} };
+const DEFAULTS = DEFAULT_BUDGET;
 
-const num = (s: string | undefined) => {
-  const n = parseFloat((s ?? "").replace(/,/g, ""));
-  return Number.isFinite(n) && n > 0 ? n : 0;
-};
+const num = parseAmount;
 
 function currencyName(code: string): string {
   try {
