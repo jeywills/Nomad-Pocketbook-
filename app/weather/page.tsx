@@ -181,8 +181,8 @@ export default function WeatherPage() {
   const metricLabels: Record<Metric, string> = {
     high: "Daytime high",
     low: "Night low",
-    rain: "Rainfall",
-    rainDays: "Rainy days",
+    rain: "Rain amount",
+    rainDays: "Days with rain",
   };
   const unitLabel = metric === "rainDays" ? "days" : metric === "rain" ? (unit === "C" ? "mm" : "in") : `°${unit}`;
 
@@ -271,7 +271,7 @@ export default function WeatherPage() {
 
           <section className="card p-3">
             <h2 className="px-1 text-sm font-medium text-muted">
-              {metricLabels[metric]} ({unitLabel}) by month
+              {metric === "rainDays" ? "Days with rain per month" : `${metricLabels[metric]} (${unitLabel}) by month`}
             </h2>
             <Chart places={places} data={data} metric={metric} unit={unit} band={[lo, hi]} />
           </section>
@@ -300,6 +300,15 @@ export default function WeatherPage() {
                           >
                             <div className="text-[10px] opacity-70">{mo}</div>
                             <div className="text-sm font-semibold">{show(v, metric, unit)}</div>
+                            {/* Rain views show both numbers: days with rain and how much fell */}
+                            {metric === "rain" && (
+                              <div className="text-[10px] opacity-75">{show(m.rainDays[k], "rainDays", unit)} days</div>
+                            )}
+                            {metric === "rainDays" && (
+                              <div className="text-[10px] opacity-75">
+                                {show(m.rain[k], "rain", unit)} {unit === "C" ? "mm" : "in"}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -310,11 +319,11 @@ export default function WeatherPage() {
                 </div>
               );
             })}
-            {metric === "rainDays" && (
+            {(metric === "rainDays" || metric === "rain") && (
               <p className="px-1 text-xs text-muted">
-                Average number of days a month with 1 mm or more of rain, from 2019-2023. This comes from a weather
-                model, which can count more light-rain days than a local station, especially in the tropics. Use it to
-                compare places and seasons.
+                A day with rain is a day with 1 mm or more. Counts are averages for each month over 2019-2023. They
+                come from a weather model, which can count more light-rain days than a local station, especially in
+                the tropics, so use them to compare places and seasons.
               </p>
             )}
           </section>
