@@ -4,12 +4,15 @@ import { useState } from "react";
 import DayCalendar from "@/components/DayCalendar";
 import PageBanner from "@/components/PageBanner";
 import StayForm, { type NewStay } from "@/components/StayForm";
+import VisaLimits from "@/components/VisaLimits";
 import { countryName } from "@/lib/countries";
 import {
   TAX_YEAR_STARTS,
   buildCsv,
   ccColor,
   formatDay,
+  limitState,
+  plural,
   schengenPlan,
   splitDays,
   stayInterval,
@@ -29,15 +32,6 @@ function newId(): string {
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
-
-/** Colour and wording for how close a count is to its limit. */
-function limitState(used: number, limit: number) {
-  if (used >= limit) return { tone: "text-danger", bar: "bg-danger" };
-  if (used >= limit * 0.8) return { tone: "text-warm", bar: "bg-warm" };
-  return { tone: "text-leaf", bar: "bg-leaf" };
-}
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** "12 days left before 183", "Reached the 183-day limit" or "3 days over the 183-day limit". */
 function limitText(used: number, limit: number): string {
@@ -279,6 +273,8 @@ export default function DaysPage() {
           before you travel.
         </p>
       </section>
+
+      <VisaLimits stays={stays} today={today} />
 
       <section className="card p-4" aria-labelledby="cal-title">
         <h2 id="cal-title" className="mb-3 font-display text-xl font-bold">

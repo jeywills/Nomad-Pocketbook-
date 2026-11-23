@@ -37,7 +37,16 @@ export function formatDay(n: number, withYear = true): string {
   });
 }
 
-type Interval = [number, number];
+export type Interval = [number, number];
+
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Colour classes for how close a count is to its limit. */
+export function limitState(used: number, limit: number) {
+  if (used >= limit) return { tone: "text-danger", bar: "bg-danger" };
+  if (used >= limit * 0.8) return { tone: "text-warm", bar: "bg-warm" };
+  return { tone: "text-leaf", bar: "bg-leaf" };
+}
 
 /** The days a stay covers (inclusive), or null if it has not started or is empty. */
 export function stayInterval(s: Stay, today: number): Interval | null {
@@ -141,13 +150,12 @@ export function schengenUsed(stays: Stay[], today: number): number {
 }
 
 /**
- * Schengen days used so far, plus the worst point reached if every planned
- * (future) stay goes ahead. The rule looks at the 180 days ending on each
- * day, so the peak can fall on a day in the future.
+ * Days used in a rolling window of `window` days ending today, plus the worst
+ * point reached if every planned (future) stay goes ahead. The rule looks at
+ * the window ending on each day, so the peak can fall on a day in the future.
  */
-export function schengenPlan(stays: Stay[], today: number) {
-  const ivs = schengenIntervals(stays, today);
-  const used = coveredDays(ivs, today - 179, today);
+export function rollingPlan(ivs: Interval[], window: number, today: number) {
+  const used = coveredDays(ivs, today - window + 1, today);
   const lastDay = Math.max(today, ...ivs.map((iv) => iv[1]));
   const hasPlanned = lastDay > today;
   let peak = used;
@@ -155,7 +163,7 @@ export function schengenPlan(stays: Stay[], today: number) {
   if (hasPlanned) {
     // Cap the look-ahead at two years so a typo like 2099 can't stall the page.
     for (let d = today + 1; d <= Math.min(lastDay, today + 730); d++) {
-      const n = coveredDays(ivs, d - 179, d);
+      const n = coveredDays(ivs, d - window + 1, d);
       if (n > peak) {
         peak = n;
         peakDay = d;
@@ -163,6 +171,29 @@ export function schengenPlan(stays: Stay[], today: number) {
     }
   }
   return { used, peak, peakDay, hasPlanned };
+}
+
+/** Schengen days used so far, and the peak if planned stays go ahead. */
+export function schengenPlan(stays: Stay[], today: number) {
+  return rollingPlan(schengenIntervals(stays, today), 180, today);
+}
+
+/** The stays in one country as intervals, with overlapping or back-to-back stays merged into single visits. */
+export function visitsIn(stays: Stay[], cc: string, today: number): Interval[] {
+  const ivs: Interval[] = [];
+  for (const s of stays) {
+    if (s.cc !== cc) continue;
+    const iv = stayInterval(s, today);
+    if (iv) ivs.push(iv);
+  }
+  ivs.sort((x, y) => x[0] - y[0]);
+  const out: Interval[] = [];
+  for (const [a, b] of ivs) {
+    const last = out[out.length - 1];
+    if (last && a <= last[1] + 1) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
+  }
+  return out;
 }
 
 /* ---------- calendar ---------- */
