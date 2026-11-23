@@ -15,6 +15,7 @@
   --accent-ink: #ffffff;
   --leaf: #1f7a5c;
   --sky: #1d6fb8;
+  --danger: #b91c1c;
   --gold: #f5b031;
   --warm: #b45309;
   --shadow: 120 60 0;
@@ -36,6 +37,7 @@
     --accent-ink: #1a0f05;
     --leaf: #4ade9a;
     --sky: #6cb6ff;
+    --danger: #f87171;
     --gold: #ffc857;
     --warm: #fbbf24;
     --shadow: 0 0 0;
@@ -56,6 +58,7 @@
   --color-accent-ink: var(--accent-ink);
   --color-leaf: var(--leaf);
   --color-sky: var(--sky);
+  --color-danger: var(--danger);
   --color-gold: var(--gold);
   --color-warm: var(--warm);
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;

@@ -63,6 +63,17 @@ const ITEMS = [
     ),
   },
   {
+    href: "/days",
+    label: "Days",
+    icon: icon(
+      <>
+        <rect x="3.5" y="5" width="17" height="15" rx="2" />
+        <path d="M3.5 10h17M8 3v4M16 3v4" />
+        <path d="M8 14.5h.01M12 14.5h.01M16 14.5h.01M8 17.5h.01M12 17.5h.01" />
+      </>,
+    ),
+  },
+  {
     href: "/passport",
     label: "Passport",
     icon: icon(

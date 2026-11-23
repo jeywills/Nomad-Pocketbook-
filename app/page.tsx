@@ -25,6 +25,13 @@ const TOOLS = [
     emoji: "🪙",
     tint: "bg-gradient-to-br from-[#064e3b] to-[#15803d]",
   },
+  {
+    href: "/days",
+    title: "Day tracker",
+    body: "Count your days per country for tax and visas.",
+    emoji: "🗓️",
+    tint: "bg-gradient-to-br from-[#500724] to-[#9d174d]",
+  },
 ];
 
 export default function Home() {

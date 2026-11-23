@@ -131,6 +131,7 @@ export const BADGES: Badge[] = [
   { id: "sunchaser", name: "Sunchaser", emoji: "☀️", hint: "Add 3 cities to the weather comparison", test: (s) => s.weatherAdds >= 3 },
   { id: "clockwork", name: "Clockwork", emoji: "⏰", hint: "Find a working window you all share", test: (s) => !!s.flags.overlap },
   { id: "penny_wise", name: "Penny Wise", emoji: "🪙", hint: "Run the budget checker", test: (s) => !!s.flags.budget_run },
+  { id: "record_keeper", name: "Record Keeper", emoji: "📒", hint: "Log a stay in the day tracker", test: (s) => !!s.flags.first_stay },
   { id: "hopper", name: "Currency Hopper", emoji: "💱", hint: "Switch your currency", test: (s) => !!s.flags.currency },
   { id: "big_saver", name: "Big Saver", emoji: "💰", hint: "Find a place that costs 30% less", test: (s) => !!s.flags.big_saver },
   { id: "streak3", name: "On a Roll", emoji: "🔥", hint: "Visit three days in a row", test: (s) => s.streak.best >= 3 },
@@ -150,11 +151,12 @@ export const QUESTS: Quest[] = [
   { id: "first_forecast", label: "Check a month-by-month forecast", href: "/weather", xp: 20, done: (s) => !!s.flags.first_forecast },
   { id: "overlap", label: "Find a shared working window", href: "/time", xp: 25, done: (s) => !!s.flags.overlap },
   { id: "budget_run", label: "Price up a move in the budget checker", href: "/budget", xp: 25, done: (s) => !!s.flags.budget_run },
+  { id: "first_stay", label: "Log where you have stayed in the day tracker", href: "/days", xp: 20, done: (s) => !!s.flags.first_stay },
 ];
 
 /* ---------- events ---------- */
 
-export type OnceId = "first_forecast" | "comfort" | "overlap" | "budget_run" | "currency";
+export type OnceId = "first_forecast" | "comfort" | "overlap" | "budget_run" | "currency" | "first_stay";
 
 const ONCE: Record<OnceId, { xp: number; label: string }> = {
   first_forecast: { xp: 20, label: "First forecast checked" },
@@ -162,6 +164,7 @@ const ONCE: Record<OnceId, { xp: number; label: string }> = {
   overlap: { xp: 25, label: "Found a shared working window" },
   budget_run: { xp: 25, label: "Budget check complete" },
   currency: { xp: 10, label: "Switched currency" },
+  first_stay: { xp: 20, label: "Logged your first stay" },
 };
 
 export type VisitedPlace = { id: string; name: string; cc?: string; lat?: number; lon?: number };
