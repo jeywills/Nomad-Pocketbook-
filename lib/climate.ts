@@ -5,11 +5,16 @@ export type Monthly = {
   high: number[];
   low: number[];
   rain: number[];
+  /** Average number of days per month with 1 mm or more of rain. */
+  rainDays: number[];
 };
 
 const START_YEAR = 2019;
 const END_YEAR = 2023;
-const CACHE_PREFIX = "np.climate.v1.";
+/** v2 added rainDays; older cached forecasts are ignored and refetched. */
+const CACHE_PREFIX = "np.climate.v2.";
+/** The standard definition of a "rain day": 1 mm or more in 24 hours. */
+const RAIN_DAY_MM = 1;
 
 type ArchiveResponse = {
   daily: {
@@ -60,6 +65,7 @@ export async function fetchMonthly(place: Place): Promise<Monthly> {
   const loSum = Array<number>(12).fill(0);
   const loN = Array<number>(12).fill(0);
   const rainSum = Array<number>(12).fill(0);
+  const rainDayCount = Array<number>(12).fill(0);
   const years = new Set<string>();
 
   daily.time.forEach((day, i) => {
@@ -76,7 +82,10 @@ export async function fetchMonthly(place: Place): Promise<Monthly> {
       loSum[month] += lo;
       loN[month] += 1;
     }
-    if (rain != null) rainSum[month] += rain;
+    if (rain != null) {
+      rainSum[month] += rain;
+      if (rain >= RAIN_DAY_MM) rainDayCount[month] += 1;
+    }
   });
 
   const yearCount = Math.max(years.size, 1);
@@ -84,6 +93,7 @@ export async function fetchMonthly(place: Place): Promise<Monthly> {
     high: hiSum.map((s, m) => (hiN[m] ? s / hiN[m] : 0)),
     low: loSum.map((s, m) => (loN[m] ? s / loN[m] : 0)),
     rain: rainSum.map((s) => s / yearCount),
+    rainDays: rainDayCount.map((n) => Math.round((n / yearCount) * 10) / 10),
   };
   writeCache(place.id, result);
   return result;

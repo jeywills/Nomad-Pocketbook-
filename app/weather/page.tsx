@@ -14,7 +14,7 @@ const MAX_PLACES = 4;
 const COLORS = ["#e4570f", "#1f9d6e", "#2f7de1", "#c026d3"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-type Metric = "high" | "low" | "rain";
+type Metric = "high" | "low" | "rain" | "rainDays";
 type Unit = "C" | "F";
 
 const DEFAULT_PREFS = { unit: "C" as Unit, metric: "high" as Metric, lo: 20, hi: 30 };
@@ -23,6 +23,7 @@ const toUnit = (c: number, u: Unit) => (u === "C" ? c : (c * 9) / 5 + 32);
 const fromUnit = (v: number, u: Unit) => (u === "C" ? v : ((v - 32) * 5) / 9);
 
 function show(value: number, metric: Metric, unit: Unit): string {
+  if (metric === "rainDays") return value < 1 ? value.toFixed(1) : String(Math.round(value));
   if (metric === "rain") return unit === "C" ? String(Math.round(value)) : (value / 25.4).toFixed(1);
   return String(Math.round(toUnit(value, unit)));
 }
@@ -31,6 +32,10 @@ function cellColor(value: number, metric: Metric): string {
   if (metric === "rain") {
     const light = 96 - (Math.min(value, 300) / 300) * 44;
     return `hsl(210 80% ${light}%)`;
+  }
+  if (metric === "rainDays") {
+    const light = 96 - (Math.min(value, 25) / 25) * 44;
+    return `hsl(215 80% ${light}%)`;
   }
   const t = Math.max(0, Math.min(40, value));
   return `hsl(${220 - (t / 40) * 220} 75% 76%)`;
@@ -80,13 +85,15 @@ function Chart({
     .filter((s) => s.m);
   if (series.length === 0) return null;
 
-  const conv = (v: number) => (metric === "rain" ? (unit === "C" ? v : v / 25.4) : toUnit(v, unit));
+  const isRain = metric === "rain" || metric === "rainDays";
+  const conv = (v: number) =>
+    metric === "rainDays" ? v : metric === "rain" ? (unit === "C" ? v : v / 25.4) : toUnit(v, unit);
   const all = series.flatMap((s) => s.m[metric].map(conv));
-  let min = metric === "rain" ? 0 : Math.min(...all);
+  let min = isRain ? 0 : Math.min(...all);
   let max = Math.max(...all);
   if (max === min) max = min + 1;
   const span = max - min;
-  if (metric !== "rain") min -= span * 0.1;
+  if (!isRain) min -= span * 0.1;
   max += span * 0.1;
 
   const x = (i: number) => pad.l + (i * (W - pad.l - pad.r)) / 11;
@@ -171,8 +178,13 @@ export default function WeatherPage() {
   const everywhere =
     loaded.length > 1 ? MONTHS.filter((_, i) => loaded.every((p) => comfy(data[p.id], i))) : [];
 
-  const metricLabels: Record<Metric, string> = { high: "Daytime high", low: "Night low", rain: "Rainfall" };
-  const unitLabel = metric === "rain" ? (unit === "C" ? "mm" : "in") : `°${unit}`;
+  const metricLabels: Record<Metric, string> = {
+    high: "Daytime high",
+    low: "Night low",
+    rain: "Rainfall",
+    rainDays: "Rainy days",
+  };
+  const unitLabel = metric === "rainDays" ? "days" : metric === "rain" ? (unit === "C" ? "mm" : "in") : `°${unit}`;
 
   return (
     <div className="space-y-5">
@@ -221,7 +233,11 @@ export default function WeatherPage() {
       {places.length > 0 && (
         <>
           <section className="flex flex-wrap items-center gap-2" aria-label="Display options">
-            <div className="flex rounded-xl border border-line bg-surface p-1" role="group" aria-label="Measure">
+            <div
+              className="grid w-full grid-cols-2 gap-1 rounded-xl border border-line bg-surface p-1 sm:flex sm:w-auto"
+              role="group"
+              aria-label="Measure"
+            >
               {(Object.keys(metricLabels) as Metric[]).map((m) => (
                 <button
                   key={m}
@@ -294,6 +310,13 @@ export default function WeatherPage() {
                 </div>
               );
             })}
+            {metric === "rainDays" && (
+              <p className="px-1 text-xs text-muted">
+                Average number of days a month with 1 mm or more of rain, from 2019-2023. This comes from a weather
+                model, which can count more light-rain days than a local station, especially in the tropics. Use it to
+                compare places and seasons.
+              </p>
+            )}
           </section>
 
           <section className="card p-4">
