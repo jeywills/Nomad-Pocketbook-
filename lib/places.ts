@@ -22,6 +22,21 @@ export function makePlace(
   return { id: `${lat.toFixed(2)},${lon.toFixed(2)}`, name, country, lat, lon, tz, cc };
 }
 
+/**
+ * True if two places are the same city. Different sources round coordinates
+ * differently, so ids alone can miss it: also match on name, country and a
+ * small distance.
+ */
+export function samePlace(a: Place, b: Place): boolean {
+  if (a.id === b.id) return true;
+  return (
+    (!a.cc || !b.cc || a.cc === b.cc) &&
+    a.name.toLowerCase() === b.name.toLowerCase() &&
+    Math.abs(a.lat - b.lat) < 0.3 &&
+    Math.abs(a.lon - b.lon) < 0.3
+  );
+}
+
 /** A plain Place with only its own fields (drops extras such as city costs). */
 export function toPlace({ id, name, country, lat, lon, tz, cc }: Place): Place {
   return { id, name, country, lat, lon, tz, cc };

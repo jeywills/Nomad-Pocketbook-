@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageBanner from "@/components/PageBanner";
+import CountryCityBrowser from "@/components/CountryCityBrowser";
 import PlacePicker from "@/components/PlacePicker";
 import { fetchMonthly, type Monthly } from "@/lib/climate";
 import { CITIES } from "@/lib/costs";
 import { DEFAULT_WEATHER_PLACES } from "@/lib/defaults";
 import { trigger } from "@/lib/game";
 import { useStored } from "@/lib/hooks";
-import { toPlace, type Place } from "@/lib/places";
+import { samePlace, toPlace, type Place } from "@/lib/places";
 
 const MAX_PLACES = 4;
 const COLORS = ["#e4570f", "#1f9d6e", "#2f7de1", "#c026d3"];
@@ -158,10 +159,11 @@ export default function WeatherPage() {
   }, [hasForecast]);
 
   const addPlace = (p: Place) => {
-    if (places.length >= MAX_PLACES || places.some((x) => x.id === p.id)) return;
+    if (places.length >= MAX_PLACES || places.some((x) => samePlace(x, p))) return;
     setPlaces((prev) => [...prev, toPlace(p)]);
     trigger({ type: "weather_add" });
   };
+  const [browsing, setBrowsing] = useState(false);
   const removePlace = (id: string) => setPlaces((prev) => prev.filter((p) => p.id !== id));
   const setPref = (patch: Partial<typeof DEFAULT_PREFS>) => setPrefs((prev) => ({ ...prev, ...patch }));
   const setComfort = (patch: Partial<typeof DEFAULT_PREFS>) => {
@@ -169,7 +171,7 @@ export default function WeatherPage() {
     trigger({ type: "once", id: "comfort" });
   };
 
-  const quick = CITIES.filter((c) => !places.some((p) => p.id === c.id))
+  const quick = CITIES.filter((c) => !places.some((p) => samePlace(p, c)))
     .slice(0, 12)
     .map(toPlace);
 
@@ -222,6 +224,24 @@ export default function WeatherPage() {
           ))}
         </ul>
         <PlacePicker onPick={addPlace} quick={quick} disabled={places.length >= MAX_PLACES} />
+
+        <button
+          type="button"
+          onClick={() => setBrowsing((b) => !b)}
+          aria-expanded={browsing}
+          className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border px-3 text-sm font-semibold ${
+            browsing ? "border-accent bg-accent/10 text-accent" : "border-line bg-surface"
+          }`}
+        >
+          <span aria-hidden>🌍</span> {browsing ? "Close country list" : "Browse by country"}
+        </button>
+        {browsing && (
+          <CountryCityBrowser
+            isAdded={(p) => places.some((x) => samePlace(x, p))}
+            onAdd={addPlace}
+            full={places.length >= MAX_PLACES}
+          />
+        )}
       </section>
 
       {places.length === 0 && (

@@ -4,7 +4,7 @@ A mobile-first travel companion for remote workers, built with Next.js and Tailw
 
 ## What it does
 
-- **Weather by month**: compare a typical year (2019-2023 averages, live from [Open-Meteo](https://open-meteo.com)) for up to four cities, with a comfortable-months finder.
+- **Weather by month**: compare a typical year (2019-2023 averages, live from [Open-Meteo](https://open-meteo.com)) for up to four cities, with days with rain, rain amount and a comfortable-months finder. Add cities by search or by browsing a country's biggest towns and cities (data from [GeoNames](https://www.geonames.org), CC BY 4.0).
 - **Time zones**: line up your base with clients and teammates and see the working hours you all share.
 - **Budget checker**: enter what you spend now and see what the same lifestyle costs in 37 cities, in your choice of 19 currencies. City costs are rough estimates (see `lib/costs.ts`); only the exchange-rate part is live ([ExchangeRate-API](https://www.exchangerate-api.com)).
 - **Day tracker**: log stays per country, see days per tax year against a day limit (183 by default), follow the Schengen 90/180 rule, browse a calendar, and export a CSV. It is a personal log, not tax advice. Logging a stay also scratches that country off your passport map.
