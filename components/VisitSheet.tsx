@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CITIES } from "@/lib/costs";
 import { countryName } from "@/lib/countries";
 import { addCityToWeather } from "@/lib/explore";
 import { trigger, visitedCodes, type GameState } from "@/lib/game";
+import { VISA_BY_CC } from "@/lib/visas";
 
 /** What the sheet is about: a whole country, or one city. */
 export type VisitTarget =
@@ -34,6 +36,7 @@ export default function VisitSheet({ target, game, onClose, onScratched }: Props
   const wishedCities = game.wishlist.filter((w) => w.cc === cc && w.kind === "city");
   const countryLabel = cc ? countryName(cc) : "";
   const explore = CITIES.filter((c) => c.cc === cc).slice(0, 3);
+  const visa = cc ? VISA_BY_CC[cc] : undefined;
 
   useEffect(() => {
     primary.current?.focus();
@@ -161,6 +164,32 @@ export default function VisitSheet({ target, game, onClose, onScratched }: Props
             Remove
           </button>
         </div>
+      )}
+
+      {visa && (
+        <Link
+          href={`/visas?c=${cc}`}
+          className="mt-3 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-bg px-3 py-2 text-sm"
+        >
+          <span>
+            <span aria-hidden>🛂 </span>
+            <span className="font-semibold">UK passport: {visa.stay}</span>
+            <span className="block text-xs text-muted">
+              Extension:{" "}
+              {visa.extension.can === "yes"
+                ? "yes"
+                : visa.extension.can === "no"
+                  ? "no"
+                  : visa.extension.can === "not-needed"
+                    ? "not needed"
+                    : "check first"}
+              {visa.advice === "all" || visa.advice === "essential" ? " · UK travel warning" : ""}
+            </span>
+          </span>
+          <span aria-hidden className="text-accent">
+            ›
+          </span>
+        </Link>
       )}
 
       {explore.length > 0 && (

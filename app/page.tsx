@@ -26,6 +26,13 @@ const TOOLS = [
     tint: "bg-gradient-to-br from-[#064e3b] to-[#15803d]",
   },
   {
+    href: "/visas",
+    title: "Visa guide",
+    body: "How long a UK passport can stay, and if you can extend.",
+    emoji: "🛂",
+    tint: "bg-gradient-to-br from-[#0c4a6e] to-[#0369a1]",
+  },
+  {
     href: "/days",
     title: "Day tracker",
     body: "Count your days per country for tax and visas.",

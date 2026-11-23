@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
-type Tone = "sun" | "night" | "jungle" | "dusk";
+type Tone = "sun" | "night" | "jungle" | "dusk" | "sky";
 
 const TONES: Record<Tone, { from: string; to: string }> = {
+  sky: { from: "#0c4a6e", to: "#0369a1" },
   sun: { from: "#7c2d12", to: "#c2410c" },
   night: { from: "#1e1b4b", to: "#3730a3" },
   jungle: { from: "#064e3b", to: "#15803d" },
@@ -47,6 +48,14 @@ export default function PageBanner({
             ))}
             <circle cx="86" cy="26" r="11" fill="#e0e7ff" opacity="0.85" />
             <circle cx="91" cy="22" r="10" fill="#2e2a8a" />
+          </>
+        )}
+        {tone === "sky" && (
+          <>
+            <circle cx="84" cy="24" r="16" fill="#bae6fd" opacity="0.16" />
+            <ellipse cx="66" cy="62" rx="22" ry="5" fill="#fff" opacity="0.14" />
+            <ellipse cx="80" cy="56" rx="14" ry="4" fill="#fff" opacity="0.14" />
+            <path d="M8 40 C 30 18, 60 18, 92 44" fill="none" stroke="#fff" strokeOpacity="0.5" strokeWidth="1" strokeDasharray="0.6 2.6" strokeLinecap="round" />
           </>
         )}
         {tone === "dusk" && (

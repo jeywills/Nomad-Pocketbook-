@@ -144,6 +144,15 @@ export function useNow(): number {
 
 const noopSubscribe = () => () => {};
 
+/** A URL query parameter such as ?c=TH. Empty on the server and during hydration. */
+export function useQueryParam(name: string): string {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => new URLSearchParams(window.location.search).get(name) ?? "",
+    () => "",
+  );
+}
+
 export function useBrowserTz(): string {
   return useSyncExternalStore(
     noopSubscribe,
