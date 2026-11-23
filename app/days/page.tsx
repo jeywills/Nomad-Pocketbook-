@@ -9,9 +9,9 @@ import {
   TAX_YEAR_STARTS,
   buildCsv,
   ccColor,
-  daysByCountry,
   formatDay,
-  schengenUsed,
+  schengenPlan,
+  splitDays,
   stayInterval,
   taxYear,
   toDay,
@@ -67,10 +67,12 @@ export default function DaysPage() {
   const todayIso = new Date(now).toLocaleDateString("en-CA");
   const today = toDay(todayIso);
   const ty = taxYear(prefs.taxStart, today, offset);
-  const totals = [...daysByCountry(stays, ty.lo, ty.hi, today)].sort((a, b) => b[1] - a[1]);
+  const totals = [...splitDays(stays, ty.lo, ty.hi, today)].sort((a, b) => b[1].total - a[1].total);
   const threshold = Math.max(1, prefs.threshold || 183);
-  const sUsed = schengenUsed(stays, today);
+  const schengen = schengenPlan(stays, today);
+  const sUsed = schengen.used;
   const sState = limitState(sUsed, SCHENGEN_LIMIT);
+  const planState = limitState(schengen.peak, SCHENGEN_LIMIT);
   const sorted = [...stays].sort((a, b) => b.start.localeCompare(a.start));
   const onDay = selectedIso
     ? stays.filter((s) => {
@@ -94,7 +96,10 @@ export default function DaysPage() {
   }
 
   function exportCsv() {
-    const csv = buildCsv(stays, today, countryName, { label: ty.label, totals: new Map(totals) });
+    const csv = buildCsv(stays, today, countryName, {
+      label: ty.label,
+      totals: new Map(totals.map(([cc, t]) => [cc, { soFar: t.soFar, planned: t.planned }])),
+    });
     const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
@@ -187,7 +192,8 @@ export default function DaysPage() {
           </p>
         ) : (
           <ul className="mt-4 space-y-3">
-            {totals.map(([cc, n]) => {
+            {totals.map(([cc, t]) => {
+              const n = t.total;
               const st = limitState(n, threshold);
               return (
                 <li key={cc}>
@@ -211,6 +217,11 @@ export default function DaysPage() {
                         <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${Math.min(100, (n / threshold) * 100)}%` }} />
                       </div>
                       <p className={`mt-0.5 text-xs font-medium ${st.tone}`}>{limitText(n, threshold)}</p>
+                      {t.planned > 0 && (
+                        <p className="text-xs text-muted">
+                          {t.soFar} so far + {t.planned} planned
+                        </p>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -219,8 +230,9 @@ export default function DaysPage() {
           </ul>
         )}
         <p className="mt-4 text-xs text-muted">
-          Both your first and last day count, and overlapping stays in the same country count once. Many countries use
-          183 days as the line for tax residency, but rules differ a lot, so check yours.
+          Both your first and last day count, and overlapping stays in the same country count once. The totals include
+          trips you have planned for later in the tax year, shown as &ldquo;planned&rdquo;, so you can see where you would
+          end up. Many countries use 183 days as the line for tax residency, but rules differ a lot, so check yours.
         </p>
       </section>
 
@@ -241,12 +253,30 @@ export default function DaysPage() {
           <div className={`h-full rounded-full ${sState.bar}`} style={{ width: `${Math.min(100, (sUsed / SCHENGEN_LIMIT) * 100)}%` }} />
         </div>
         <p className="mt-2 text-sm">
-          <span className="font-bold tabular-nums">{sUsed}</span> of {SCHENGEN_LIMIT} days used in the last 180 days
-          (since {formatDay(today - 179, false)}).
+          <span className="font-bold tabular-nums">{sUsed}</span> of {SCHENGEN_LIMIT} days used so far, in the last 180
+          days (since {formatDay(today - 179, false)}).
         </p>
+
+        {schengen.hasPlanned && (
+          <div className="mt-3 rounded-xl bg-bg p-3" aria-live="polite">
+            <p className="text-xs font-bold tracking-wider text-muted uppercase">With your planned stays</p>
+            <p className={`mt-1 text-sm font-semibold ${planState.tone}`}>
+              {schengen.peak > SCHENGEN_LIMIT
+                ? `You'd be ${plural(schengen.peak - SCHENGEN_LIMIT, "day")} over, reaching ${schengen.peak} days on ${formatDay(schengen.peakDay)}.`
+                : schengen.peak === SCHENGEN_LIMIT
+                  ? `You'd use all ${SCHENGEN_LIMIT} days on ${formatDay(schengen.peakDay)}.`
+                  : `Your busiest point is ${schengen.peak} of ${SCHENGEN_LIMIT} days, on ${formatDay(schengen.peakDay)}.`}
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              The rule looks at the 180 days before each day, so a planned trip is checked on every day it covers.
+            </p>
+          </div>
+        )}
+
         <p className="mt-2 text-xs text-muted">
-          Counts days in any of the 29 Schengen countries together. It applies to visitors who don&apos;t have a
-          residence permit or EU/EEA citizenship. Check the official rules before you travel.
+          Counts days in any of the 29 Schengen countries together, including trips you have planned for later. It
+          applies to visitors who don&apos;t have a residence permit or EU/EEA citizenship. Check the official rules
+          before you travel.
         </p>
       </section>
 
@@ -293,7 +323,7 @@ export default function DaysPage() {
             {sorted.map((s) => {
               const iv = stayInterval(s, today);
               const days = iv ? iv[1] - iv[0] + 1 : 0;
-              const future = !iv;
+              const planned = toDay(s.start) > today;
               return (
                 <li key={s.id} className="flex items-center gap-3 py-3">
                   <span
@@ -310,10 +340,10 @@ export default function DaysPage() {
                         ? `${formatDay(toDay(s.start))} to ${formatDay(toDay(s.end))}`
                         : `Since ${formatDay(toDay(s.start))} · still here`}
                       {" · "}
-                      {future ? "starts later" : `${days} day${days === 1 ? "" : "s"}`}
+                      {planned ? (iv ? `planned, ${plural(days, "day")}` : "planned") : plural(days, "day")}
                     </p>
                   </div>
-                  {s.end === null && !future && (
+                  {s.end === null && !planned && (
                     <button
                       type="button"
                       onClick={() => setStays((prev) => prev.map((x) => (x.id === s.id ? { ...x, end: todayIso } : x)))}

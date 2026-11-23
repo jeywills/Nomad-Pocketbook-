@@ -83,6 +83,21 @@ export function daysByCountry(stays: Stay[], lo: number, hi: number, today: numb
   return out;
 }
 
+/**
+ * Days per country in a range, split into days already spent and days still
+ * planned (dates after today).
+ */
+export function splitDays(stays: Stay[], lo: number, hi: number, today: number) {
+  const all = daysByCountry(stays, lo, hi, today);
+  const sofar = daysByCountry(stays, lo, Math.min(hi, today), today);
+  const out = new Map<string, { soFar: number; planned: number; total: number }>();
+  for (const [cc, total] of all) {
+    const soFar = sofar.get(cc) ?? 0;
+    out.set(cc, { soFar, planned: total - soFar, total });
+  }
+  return out;
+}
+
 /* ---------- tax years ---------- */
 
 export const TAX_YEAR_STARTS = [
@@ -110,15 +125,44 @@ export const SCHENGEN: ReadonlySet<string> = new Set(
   "AT BE BG HR CZ DK EE FI FR DE GR HU IS IT LV LI LT LU MT NL NO PL PT RO SK SI ES SE CH".split(" "),
 );
 
-/** Schengen days used in the 180 days up to and including today. Any Schengen country counts. */
-export function schengenUsed(stays: Stay[], today: number): number {
+function schengenIntervals(stays: Stay[], today: number): Interval[] {
   const ivs: Interval[] = [];
   for (const s of stays) {
     if (!SCHENGEN.has(s.cc)) continue;
     const iv = stayInterval(s, today);
     if (iv) ivs.push(iv);
   }
-  return coveredDays(ivs, today - 179, today);
+  return ivs;
+}
+
+/** Schengen days used in the 180 days up to and including today. Any Schengen country counts. */
+export function schengenUsed(stays: Stay[], today: number): number {
+  return coveredDays(schengenIntervals(stays, today), today - 179, today);
+}
+
+/**
+ * Schengen days used so far, plus the worst point reached if every planned
+ * (future) stay goes ahead. The rule looks at the 180 days ending on each
+ * day, so the peak can fall on a day in the future.
+ */
+export function schengenPlan(stays: Stay[], today: number) {
+  const ivs = schengenIntervals(stays, today);
+  const used = coveredDays(ivs, today - 179, today);
+  const lastDay = Math.max(today, ...ivs.map((iv) => iv[1]));
+  const hasPlanned = lastDay > today;
+  let peak = used;
+  let peakDay = today;
+  if (hasPlanned) {
+    // Cap the look-ahead at two years so a typo like 2099 can't stall the page.
+    for (let d = today + 1; d <= Math.min(lastDay, today + 730); d++) {
+      const n = coveredDays(ivs, d - 179, d);
+      if (n > peak) {
+        peak = n;
+        peakDay = d;
+      }
+    }
+  }
+  return { used, peak, peakDay, hasPlanned };
 }
 
 /* ---------- calendar ---------- */
@@ -161,14 +205,15 @@ export function buildCsv(
   stays: Stay[],
   today: number,
   name: (cc: string) => string,
-  year: { label: string; totals: Map<string, number> },
+  year: { label: string; totals: Map<string, { soFar: number; planned: number }> },
 ): string {
   const rows: (string | number)[][] = [["Country", "Code", "First day", "Last day", "Days"]];
   for (const s of [...stays].sort((a, b) => a.start.localeCompare(b.start))) {
     const iv = stayInterval(s, today);
     rows.push([name(s.cc), s.cc, s.start, s.end ?? `ongoing (to ${fromDay(today)})`, iv ? iv[1] - iv[0] + 1 : 0]);
   }
-  rows.push([], [`Totals for ${year.label}`], ["Country", "Code", "Days"]);
-  for (const [cc, n] of [...year.totals].sort((a, b) => b[1] - a[1])) rows.push([name(cc), cc, n]);
+  rows.push([], [`Totals for ${year.label}`], ["Country", "Code", "Days so far", "Planned days", "Total"]);
+  const byTotal = [...year.totals].sort((a, b) => b[1].soFar + b[1].planned - (a[1].soFar + a[1].planned));
+  for (const [cc, t] of byTotal) rows.push([name(cc), cc, t.soFar, t.planned, t.soFar + t.planned]);
   return rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
 }
